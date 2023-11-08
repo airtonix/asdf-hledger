@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for hledger.
 GH_REPO="https://github.com/simonmichael/hledger"
 TOOL_NAME="hledger"
 TOOL_TEST="ledger --version"
@@ -31,8 +30,6 @@ list_github_tags() {
 }
 
 list_all_versions() {
-	# TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-	# Change this function if hledger has other means of determining installable versions.
 	list_github_tags
 }
 
@@ -40,9 +37,10 @@ download_release() {
 	local version filename url
 	version="$1"
 	filename="$2"
+	processor=$(get_machine_processor)
+	os=$(get_machine_os)
 
-	# TODO: Adapt the release URL convention for hledger
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	url="$GH_REPO/releases/download/${version}/${TOOL_NAME}-${os}-${processor}.zip"
 
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
@@ -61,7 +59,6 @@ install_version() {
 		mkdir -p "$install_path"
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert hledger executable exists.
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
 		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
@@ -71,4 +68,28 @@ install_version() {
 		rm -rf "$install_path"
 		fail "An error occurred while installing $TOOL_NAME $version."
 	)
+}
+
+get_machine_os() {
+	case "${OSTYPE}" in
+	darwin*) echo "mac" ;;
+	linux*) echo "linux" ;;
+	*)
+		# dump error to stderr
+		echo "asdf-$TOOL_NAME: $OSTYPE is not supported" >&2
+		exit 1
+		;;
+	esac
+}
+
+get_machine_processor() {
+	KERNEL=$(uname -m)
+	case "${KERNEL}" in
+	x86_64*) echo 'x64' ;;
+	*)
+		# dump error to stderr
+		echo "asdf-$TOOL_NAME: $KERNEL is not supported" >&2
+		exit 1
+		;;
+	esac
 }
